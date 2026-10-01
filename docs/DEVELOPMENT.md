@@ -35,7 +35,7 @@ The release workflow attaches that zip and the two raw DLLs to the GitHub releas
 
 ## Version
 
-`version.txt` is the version. `Directory.Build.props` reads it, and the plugin's `BepInPlugin` version is generated from that property. release-please updates `version.txt` and `CHANGELOG.md`.
+The release pull request is the only edit of `version.txt` and of `version_number` in `manifest.json`. release-please writes those, plus `CHANGELOG.md`, from the conventional commits since the last release. Merging that pull request tags `vX.Y.Z`. `make package` on that tag reads `version.txt`, so the zip is `EvuMinimap-X.Y.Z.zip` and the packaged manifest uses the same number. `Directory.Build.props` reads `version.txt` for the plugin version. A later hand edit of either file is overwritten on the next release.
 
 ## Game updates
 

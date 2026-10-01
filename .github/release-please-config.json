@@ -8,7 +8,15 @@
       "include-component-in-tag": false,
       "initial-version": "0.1.0",
       "bump-minor-pre-major": false,
-      "bump-patch-for-minor-pre-major": false
+      "bump-patch-for-minor-pre-major": false,
+      "version-file": "version.txt",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "manifest.json",
+          "jsonpath": "$.version_number"
+        }
+      ]
     }
   }
 }
