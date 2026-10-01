@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using EvuMinimap.Core;
 using UnityEngine;
 using UnityEngine.UI;
@@ -24,6 +25,11 @@ internal sealed class MinimapApplier
     bool _savedCanvasAlphaKnown;
     float _savedCanvasAlpha;
     bool _touched;
+    static readonly FieldInfo? BiomeNameField = typeof(Minimap).GetField(
+        "m_biomeNameSmall",
+        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+    readonly List<MaskableGraphic> _outsideMask = new List<MaskableGraphic>();
+    readonly List<bool> _outsideMaskWas = new List<bool>();
     readonly List<Graphic> _tinted = new List<Graphic>();
     readonly List<Color> _tintBase = new List<Color>();
     readonly List<Graphic> _tintSeen = new List<Graphic>();
@@ -96,6 +102,7 @@ internal sealed class MinimapApplier
         var layout = LayoutSolver.Solve(_vanillaMap, ReadParent(parent), profile);
         Apply(small, layout);
         ApplyShape(minimap, small.gameObject, profile);
+        KeepOutsideMask(minimap);
         ApplyAlpha(minimap, small.gameObject, profile.Alpha);
         _touched = true;
 
@@ -124,7 +131,7 @@ internal sealed class MinimapApplier
 
     void ReleaseToVanilla()
     {
-        if (!_touched && !_capturedMap && _clip == null && _buffId == 0 && _shipId == 0 && _shipIconId == 0 && _canvasGroup == null && _tinted.Count == 0)
+        if (!_touched && !_capturedMap && _clip == null && _buffId == 0 && _shipId == 0 && _shipIconId == 0 && _canvasGroup == null && _tinted.Count == 0 && _outsideMask.Count == 0)
         {
             return;
         }
@@ -148,6 +155,7 @@ internal sealed class MinimapApplier
             _capturedMap = false;
         }
 
+        RestoreOutsideMask();
         ReleaseClip(root);
         UseLiveMapMaterial(minimap, clip: false);
         RestoreAlpha(root);
@@ -284,6 +292,61 @@ internal sealed class MinimapApplier
         _mask = null;
         _maskImage = null;
         _clipHooked = false;
+    }
+
+    void KeepOutsideMask(Minimap minimap)
+    {
+        NoteOutside(minimap.m_windMarker);
+        NoteOutside(BiomeName(minimap));
+        for (var i = 0; i < _outsideMask.Count; i++)
+        {
+            var graphic = _outsideMask[i];
+            if (graphic != null && graphic.maskable)
+            {
+                graphic.maskable = false;
+            }
+        }
+    }
+
+    void NoteOutside(Component? root)
+    {
+        if (root == null)
+        {
+            return;
+        }
+
+        var graphics = root.GetComponentsInChildren<MaskableGraphic>(true);
+        for (var i = 0; i < graphics.Length; i++)
+        {
+            var graphic = graphics[i];
+            if (graphic == null || _outsideMask.Contains(graphic))
+            {
+                continue;
+            }
+
+            _outsideMask.Add(graphic);
+            _outsideMaskWas.Add(graphic.maskable);
+        }
+    }
+
+    static Component? BiomeName(Minimap minimap)
+    {
+        return BiomeNameField?.GetValue(minimap) as Component;
+    }
+
+    void RestoreOutsideMask()
+    {
+        for (var i = 0; i < _outsideMask.Count; i++)
+        {
+            var graphic = _outsideMask[i];
+            if (graphic != null)
+            {
+                graphic.maskable = _outsideMaskWas[i];
+            }
+        }
+
+        _outsideMask.Clear();
+        _outsideMaskWas.Clear();
     }
 
     void UseLiveMapMaterial(Minimap minimap, bool clip)

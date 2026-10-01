@@ -20,7 +20,7 @@ The plugin soft-depends on `com.bepis.bepinex.configurationmanager` so that mana
 | OffsetY | 0 | -4000 to 4000 | Vertical shift of that anchor, in HUD units, from its vanilla position. |
 | RepositionBuffIcons | true | bool | When the minimap overlaps the buff strip, slide the strip to the left of the map when that fits. Otherwise use the side with the most free space. When there is no overlap, the strip stays at the vanilla position. |
 | RepositionShipHud | true | bool | Slide the boat wind panel below the minimap when they overlap, if that spot fits on screen. Shown as "Move ship wind". Otherwise it moves to the side with the most room. It stays put when the map does not cover it. |
-| ShapeMask | None | None, Oval, Rectangle | Extra clip. None keeps Valheim's shape, including changes from other mods. Shown as "Shape mask". |
+| ShapeMask | None | None, Oval, Rectangle | Extra clip. None keeps Valheim's shape, including changes from other mods. Shown as "Shape mask". The zone name and the on-map wind arrow are not clipped. |
 | IconAlpha | 1 | 0 to 1 | Opacity of the frame, pins, and markers. Shown as "Icon alpha". Does not fade the terrain. |
 | Aspect | 1 | 0.5 to 2 | Width/height of the shape mask. The map and icons stay 1:1. Above 1 crops the top and bottom. Below 1 crops the sides. Locked while shape mask is None. |
 | CornerRadius | 0 | 0 to 1 | Corner roundness of the rectangle mask. 0 is sharp. 1 is a capsule. Locked for None and oval. |

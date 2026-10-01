@@ -5,7 +5,7 @@
 - `src/EvuMinimap.Core` solves rectangles. It targets `netstandard2.0` and does not reference Unity.
 - `src/EvuMinimap` is the BepInEx plugin (`net48`). It captures the vanilla small-map rect once, then writes the solved anchors, pivot, size, and `localScale` while the small map is on screen.
 - Buff clearance uses the same core. The plugin converts the map and the status-effect list into one canvas space, asks `BuffPlacement` for a spot, and writes the delta back as `anchoredPosition`. When the map is hidden, the large map is open, or the world has no map, the buff list is put back.
-- Shape mask `None` does not add a clip. Oval and rectangle add a mask. The UI mask clones the terrain material, so each frame the live map properties are copied back onto that clone and the stencil values are kept. Aspect only changes the mask window. Icon alpha is a `CanvasGroup` on the small-map root, plus `_Color` on custom pin shaders. The terrain shader does not read UI opacity.
+- Shape mask `None` does not add a clip. Oval and rectangle add a mask. The UI mask clones the terrain material, so each frame the live map properties are copied back onto that clone and the stencil values are kept. Aspect only changes the mask window. The zone name and the small-map wind arrow stay drawable past that clip; pins and terrain stay masked. Icon alpha is a `CanvasGroup` on the small-map root, plus `_Color` on custom pin shaders. The terrain shader does not read UI opacity.
 
 The plugin does not Harmony-patch the HUD. `LateUpdate` is enough while the game writes those rects earlier in the frame. If a game update starts overwriting them afterwards, add a postfix on the method that writes them and keep the solver as it is.
 
@@ -56,6 +56,6 @@ There is no automated playtest here. After a HUD change, confirm:
 - Buff icons move to the left of a larger top-right map, and stay in the vanilla corner if the map is moved to the other side of the screen.
 - On a boat, a larger top-right map pushes the wind panel below the map. The panel stays put when the map does not cover it.
 - Alt+Numpad multiply and divide cycle profiles 1 through 5, and the top-left toast says which one is active.
-- Shape mask None matches the vanilla minimap. Oval and rectangle crop the terrain as well as the frame and pins. Lowering icon alpha fades the frame, pins, and markers. The terrain stays opaque.
+- Shape mask None matches the vanilla minimap. Oval and rectangle crop the terrain as well as the frame and pins. The zone name and the wind arrow in the bottom-left of the minimap stay fully visible. Lowering icon alpha fades the frame, pins, and markers. The terrain stays opaque.
 - Reset returns the active profile. Hotkeys and the other profiles stay bound.
 - The large map still opens and closes.
