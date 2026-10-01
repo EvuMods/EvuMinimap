@@ -28,7 +28,7 @@ make verify
 make package
 ```
 
-`make verify` is the gate: fetch references if needed, build, and test. `make package` writes `dist/EvuMinimap-<version>.zip` with the plugin dll, README, license, and changelog.
+`make verify` is the gate: fetch references if needed, build, and test. `make package` writes `dist/EvuMinimap-<version>.zip` for Gale. The zip root holds `manifest.json`, `icon.png`, `README.md`, and `CHANGELOG.md`. The plugin is at `BepInEx/plugins/EvuMinimap.dll`, which is where Gale installs it. `version_number` in the packaged manifest is taken from `version.txt`.
 
 ## Version
 
