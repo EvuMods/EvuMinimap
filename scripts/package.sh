@@ -3,7 +3,6 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="$(tr -d '[:space:]' < "$ROOT/version.txt")"
-BEPINEX_VERSION="$(tr -d '[:space:]' < "$ROOT/deps/bepinex-pack.version")"
 
 python_bin() {
   if command -v python3 >/dev/null 2>&1; then
@@ -14,11 +13,12 @@ python_bin() {
 }
 
 DLL="$ROOT/src/EvuMinimap/bin/Release/EvuMinimap.dll"
+CORE="$ROOT/src/EvuMinimap/bin/Release/EvuMinimap.Core.dll"
 STAGE="$ROOT/dist/EvuMinimap"
 ZIP="$ROOT/dist/EvuMinimap-${VERSION}.zip"
 
-if [[ ! -f "$DLL" ]]; then
-  echo "package: missing $DLL. Run make build first." >&2
+if [[ ! -f "$DLL" || ! -f "$CORE" ]]; then
+  echo "package: missing plugin output. Run make build first." >&2
   exit 1
 fi
 
@@ -30,19 +30,17 @@ for required in "$ROOT/manifest.json" "$ROOT/icon.png" "$ROOT/README.md" "$ROOT/
 done
 
 rm -rf "$STAGE" "$ZIP"
-mkdir -p "$STAGE/BepInEx/plugins"
-cp "$DLL" "$STAGE/BepInEx/plugins/EvuMinimap.dll"
-cp "$ROOT/icon.png" "$ROOT/README.md" "$ROOT/CHANGELOG.md" "$STAGE/"
+mkdir -p "$STAGE"
+cp "$DLL" "$CORE" "$ROOT/icon.png" "$ROOT/README.md" "$ROOT/CHANGELOG.md" "$STAGE/"
 
-"$(python_bin)" - "$ROOT/manifest.json" "$STAGE/manifest.json" "$VERSION" "$BEPINEX_VERSION" <<'PY'
+"$(python_bin)" - "$ROOT/manifest.json" "$STAGE/manifest.json" "$VERSION" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-source, dest, version, bepinex = sys.argv[1:]
+source, dest, version = sys.argv[1:]
 manifest = json.loads(Path(source).read_text(encoding="utf-8"))
 manifest["version_number"] = version
-manifest["dependencies"] = [f"denikson-BepInExPack_Valheim-{bepinex}"]
 Path(dest).write_text(json.dumps(manifest, indent=4) + "\n", encoding="utf-8")
 PY
 

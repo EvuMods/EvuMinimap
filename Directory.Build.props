@@ -10,7 +10,7 @@
     <Copyright>Copyright (c) 2026 imevul</Copyright>
     <Product>EvuMinimap</Product>
     <Description>Client-side Valheim minimap size and position.</Description>
-    <RepositoryUrl>https://github.com/imevul/EvuMinimap</RepositoryUrl>
+    <RepositoryUrl>https://github.com/EvuMods/EvuMinimap</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RefsDir Condition="'$(RefsDir)' == ''">$(MSBuildThisFileDirectory).refs</RefsDir>
     <ValheimManaged>$(RefsDir)/Valheim</ValheimManaged>

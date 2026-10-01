@@ -28,7 +28,7 @@ make verify
 make package
 ```
 
-`make verify` is the gate: fetch references if needed, build, and test. `make package` writes `dist/EvuMinimap-<version>.zip` for Gale. The zip root holds `manifest.json`, `icon.png`, `README.md`, and `CHANGELOG.md`. The plugin is at `BepInEx/plugins/EvuMinimap.dll`, which is where Gale installs it. `version_number` in the packaged manifest is taken from `version.txt`.
+`make verify` is the gate: fetch references if needed, build, and test. `make package` writes `dist/EvuMinimap-<version>.zip` in the Hexium layout: `manifest.json`, `icon.png`, `README.md`, `CHANGELOG.md`, `EvuMinimap.dll`, and `EvuMinimap.Core.dll` all at the zip root. `version_number` in the packaged manifest is taken from `version.txt`. BepInExPack is not a manifest dependency; Hexium assumes it and strips that entry on upload.
 
 ## Version
 

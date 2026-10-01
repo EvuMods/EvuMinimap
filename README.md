@@ -2,35 +2,44 @@
 
 Client-side Valheim mod that resizes the minimap and moves the point it grows from. Buff icons slide out of the way when the map covers them, and stay where Valheim put them when it does not.
 
-Only your game needs the mod. The large map is unchanged.
+## Features
 
-## Requirements
+- Scale from 0.5x to 5x vanilla. The default anchor is the top-right corner, so the map grows down and left.
+- Move that anchor from its vanilla position. At 1x and zero offset, every anchor still matches the vanilla map.
+- Alt+Numpad plus and minus change the size by one step. Either Alt key works.
+- Buff icons move only when the minimap overlaps them.
+- Reset restores the map and the buff behavior. Hotkeys stay as they are.
 
-- [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/) 5.4.2351 or a compatible 5.4 pack
-- Valheim, client only
+## Installation
 
-A configuration manager is optional. The mod uses BepInEx's config file, so [Configuration Manager](https://github.com/BepInEx/BepInEx.ConfigurationManager) and the usual forks can edit it in game. Ranges, the anchor dropdown, hotkeys, and the reset button are tagged for those editors.
+Install with a mod manager, or copy `EvuMinimap.dll` and `EvuMinimap.Core.dll` into `BepInEx/plugins`. Both files have to sit in the same folder.
 
-## Install
+BepInExPack Valheim is required to play. Hexium assumes that pack, so this package does not list it as a dependency.
 
-1. Install BepInExPack Valheim.
-2. Copy `EvuMinimap.dll` into `BepInEx/plugins`.
-3. Start Valheim once. Settings are written to `BepInEx/config/evu.evuminimap.cfg`.
+Start Valheim once. Settings are written to `BepInEx/config/evu.evuminimap.cfg`.
 
-## Defaults
+## Configuration
+
+A configuration manager is optional. The mod uses BepInEx's config file, so Configuration Manager and the usual forks can edit it in game.
 
 | Setting | Default |
 | --- | --- |
 | Scale | 1 (vanilla), from 0.5 to 5 |
-| Anchor | Top-right. The map grows down and left. |
-| Offset | 0, 0. The anchor sits where it does in vanilla. |
+| Anchor | Top-right |
+| Offset | 0, 0 |
 | Buff icons | Move only when the minimap overlaps them |
 | Larger | Alt + Numpad + |
 | Smaller | Alt + Numpad - |
 
-Either Alt key works. One press changes the size by 0.25. Reset restores the map and the buff behavior. It does not clear the hotkeys.
+One press changes the size by 0.25. Changing the anchor at 1x does not move the map. Later size changes grow away from the new anchor. An offset moves that anchor, in HUD units, from the place it has on the vanilla map.
 
-Changing the anchor at 1x does not move the map. Later size changes grow away from the new anchor. An offset moves that anchor, in HUD units, from the place it has on the vanilla map.
+The full list is in [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+
+## Compatibility
+
+Client only. The dedicated server loads the plugin and does nothing. The large map is unchanged.
+
+If Minimal Status Effects or StatusQuo is installed, buff icons are left alone.
 
 ## Build
 
