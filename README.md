@@ -15,7 +15,7 @@ Client-side Valheim mod that resizes the minimap and moves the point it grows fr
 
 ## Installation
 
-Install [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/), then install this mod with a mod manager, or copy `EvuMinimap.dll` and `EvuMinimap.Core.dll` into `BepInEx/plugins`. Both files have to sit in the same folder.
+Install [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/), then install [EvuMinimap from Thunderstore](https://thunderstore.io/c/valheim/p/EvuMods/EvuMinimap/), or copy `EvuMinimap.dll` and `EvuMinimap.Core.dll` into `BepInEx/plugins`. Both files have to sit in the same folder.
 
 Start Valheim once. Settings are written to `BepInEx/config/evu.evuminimap.cfg`.
 
