@@ -3,6 +3,12 @@
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 SOLUTION := $(ROOT)/EvuMinimap.sln
 
+# A distro package can put a runtime-only `dotnet` ahead of a user-local SDK.
+ifneq ($(wildcard $(HOME)/.dotnet/dotnet),)
+export PATH := $(HOME)/.dotnet:$(PATH)
+export DOTNET_ROOT := $(HOME)/.dotnet
+endif
+
 fetch-refs:
 	bash "$(ROOT)/scripts/fetch-refs.sh"
 

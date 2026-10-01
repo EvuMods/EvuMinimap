@@ -11,17 +11,17 @@ public static class BuffPlacement
             return vanillaBuffs;
         }
 
-        var below = Slide(vanillaBuffs, vanillaBuffs.X, map.Y - Gap - vanillaBuffs.Height);
-        if (Fits(below, map, parent))
+        var left = Slide(vanillaBuffs, map.X - Gap - vanillaBuffs.Width, vanillaBuffs.Y);
+        if (Fits(left, map, parent))
         {
-            return below;
+            return left;
         }
 
+        var below = Slide(vanillaBuffs, vanillaBuffs.X, map.Y - Gap - vanillaBuffs.Height);
         var above = Slide(vanillaBuffs, vanillaBuffs.X, map.Top + Gap);
-        var left = Slide(vanillaBuffs, map.X - Gap - vanillaBuffs.Width, vanillaBuffs.Y);
         var right = Slide(vanillaBuffs, map.Right + Gap, vanillaBuffs.Y);
 
-        if (TryBestFit(map, parent, above, left, right, out var fitted))
+        if (TryBestFit(map, parent, below, above, right, out var fitted))
         {
             return fitted;
         }
@@ -29,13 +29,13 @@ public static class BuffPlacement
         return Roomiest(map, vanillaBuffs, parent);
     }
 
-    static bool TryBestFit(HudRect map, ParentRect parent, HudRect above, HudRect left, HudRect right, out HudRect placed)
+    static bool TryBestFit(HudRect map, ParentRect parent, HudRect below, HudRect above, HudRect right, out HudRect placed)
     {
         placed = default;
         var found = false;
         var bestSpace = float.NegativeInfinity;
+        Consider(below, FreeBelow(map, parent), map, parent, ref found, ref bestSpace, ref placed);
         Consider(above, FreeAbove(map, parent), map, parent, ref found, ref bestSpace, ref placed);
-        Consider(left, FreeLeft(map, parent), map, parent, ref found, ref bestSpace, ref placed);
         Consider(right, FreeRight(map, parent), map, parent, ref found, ref bestSpace, ref placed);
         return found;
     }
@@ -65,18 +65,18 @@ public static class BuffPlacement
         var aboveSpace = FreeAbove(map, parent);
         var leftSpace = FreeLeft(map, parent);
         var rightSpace = FreeRight(map, parent);
-        var best = belowSpace;
-        var side = Side.Below;
+        var best = leftSpace;
+        var side = Side.Left;
+        if (belowSpace > best)
+        {
+            best = belowSpace;
+            side = Side.Below;
+        }
+
         if (aboveSpace > best)
         {
             best = aboveSpace;
             side = Side.Above;
-        }
-
-        if (leftSpace > best)
-        {
-            best = leftSpace;
-            side = Side.Left;
         }
 
         if (rightSpace > best)

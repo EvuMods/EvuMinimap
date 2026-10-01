@@ -1,5 +1,6 @@
 using System;
 using BepInEx.Configuration;
+using BepInEx.Logging;
 using EvuMinimap.Core;
 using UnityEngine;
 
@@ -7,70 +8,51 @@ namespace EvuMinimap;
 
 internal sealed class PluginConfig
 {
-    readonly ConfigEntry<float> _scale;
-    readonly ConfigEntry<MapAnchor> _anchor;
-    readonly ConfigEntry<float> _offsetX;
-    readonly ConfigEntry<float> _offsetY;
-    readonly ConfigEntry<bool> _repositionBuffs;
+    readonly ProfileSlot[] _slots;
+    readonly ConfigEntry<int> _active;
     readonly ConfigEntry<float> _scaleStep;
     readonly ConfigEntry<KeyboardShortcut> _increase;
     readonly ConfigEntry<KeyboardShortcut> _decrease;
+    readonly ConfigEntry<KeyboardShortcut> _nextProfile;
+    readonly ConfigEntry<KeyboardShortcut> _previousProfile;
     readonly ConfigEntry<bool> _reset;
+    readonly ConfigEntry<bool> _enabled;
+    readonly ManualLogSource _log;
     bool _updating;
 
-    public PluginConfig(ConfigFile config)
+    public PluginConfig(ConfigFile config, ManualLogSource log)
     {
-        _scale = config.Bind(
-            "Minimap",
-            "Scale",
-            1f,
-            new ConfigDescription(
-                "Minimap size relative to vanilla. 1 is the original size.",
-                new AcceptableValueRange<float>(ScaleMath.Min, ScaleMath.Max),
-                new ConfigurationManagerAttributes { Order = 90 }));
-
-        _anchor = config.Bind(
-            "Minimap",
-            "Anchor",
-            MapAnchor.TopRight,
-            new ConfigDescription(
-                "Point of the minimap that stays in place when the size changes. Top-right grows down-left.",
-                null,
-                new ConfigurationManagerAttributes { Order = 80 }));
-
-        _offsetX = config.Bind(
-            "Minimap",
-            "OffsetX",
-            0f,
-            new ConfigDescription(
-                "Moves the anchor horizontally, in HUD units, from its vanilla position.",
-                new AcceptableValueRange<float>(-4000f, 4000f),
-                new ConfigurationManagerAttributes { Order = 70 }));
-
-        _offsetY = config.Bind(
-            "Minimap",
-            "OffsetY",
-            0f,
-            new ConfigDescription(
-                "Moves the anchor vertically, in HUD units, from its vanilla position.",
-                new AcceptableValueRange<float>(-4000f, 4000f),
-                new ConfigurationManagerAttributes { Order = 60 }));
-
-        _repositionBuffs = config.Bind(
-            "Minimap",
-            "RepositionBuffIcons",
+        _log = log;
+        RegisterShapeAliases();
+        _enabled = config.Bind(
+            "General",
+            "Enabled",
             true,
             new ConfigDescription(
-                "Slide buff icons off the minimap when they overlap it. Icons stay put when the map does not cover them.",
+                "When off, the small minimap and buff strip stay vanilla. Saved profiles and hotkeys remain in this file and apply again when this is on.",
                 null,
-                new ConfigurationManagerAttributes { Order = 50 }));
+                new ConfigurationManagerAttributes { Order = 100 }));
+        _slots = new ProfileSlot[ProfileIndex.Count];
+        for (var i = 0; i < _slots.Length; i++)
+        {
+            _slots[i] = ProfileSlot.Bind(config, i, ClampFloat);
+        }
+
+        _active = config.Bind(
+            "Profiles",
+            "Active",
+            1,
+            new ConfigDescription(
+                "Which saved minimap profile is shown. Alt+Numpad multiply and divide cycle it.",
+                new AcceptableValueRange<int>(1, ProfileIndex.Count),
+                new ConfigurationManagerAttributes { Order = 100 }));
 
         _scaleStep = config.Bind(
             "Minimap",
             "ScaleStep",
             ScaleMath.DefaultStep,
             new ConfigDescription(
-                "How much the size hotkeys change the scale.",
+                "How much the size hotkeys change the scale of the active profile.",
                 new AcceptableValueRange<float>(0.05f, 1f),
                 new ConfigurationManagerAttributes { Order = 10, IsAdvanced = true }));
 
@@ -79,16 +61,34 @@ internal sealed class PluginConfig
             "IncreaseSize",
             new KeyboardShortcut(KeyCode.KeypadPlus, KeyCode.LeftAlt),
             new ConfigDescription(
-                "Increase the minimap scale by one step. Either Alt key works.",
+                "Increase the active profile's scale by one step. Either Alt key works.",
                 null,
-                new ConfigurationManagerAttributes { Order = 20 }));
+                new ConfigurationManagerAttributes { Order = 40 }));
 
         _decrease = config.Bind(
             "Hotkeys",
             "DecreaseSize",
             new KeyboardShortcut(KeyCode.KeypadMinus, KeyCode.LeftAlt),
             new ConfigDescription(
-                "Decrease the minimap scale by one step. Either Alt key works.",
+                "Decrease the active profile's scale by one step. Either Alt key works.",
+                null,
+                new ConfigurationManagerAttributes { Order = 30 }));
+
+        _nextProfile = config.Bind(
+            "Hotkeys",
+            "NextProfile",
+            new KeyboardShortcut(KeyCode.KeypadMultiply, KeyCode.LeftAlt),
+            new ConfigDescription(
+                "Switch to the next minimap profile. Either Alt key works.",
+                null,
+                new ConfigurationManagerAttributes { Order = 20 }));
+
+        _previousProfile = config.Bind(
+            "Hotkeys",
+            "PreviousProfile",
+            new KeyboardShortcut(KeyCode.KeypadDivide, KeyCode.LeftAlt),
+            new ConfigDescription(
+                "Switch to the previous minimap profile. Either Alt key works.",
                 null,
                 new ConfigurationManagerAttributes { Order = 10 }));
 
@@ -97,7 +97,7 @@ internal sealed class PluginConfig
             "ResetToVanilla",
             false,
             new ConfigDescription(
-                "Restore scale, anchor, offset, and buff reposition. Hotkeys are kept.",
+                "Restore the active profile: scale, anchor, offset, buff reposition, shape mask, and icon alpha. Hotkeys and the other profiles are kept.",
                 null,
                 new ConfigurationManagerAttributes
                 {
@@ -107,8 +107,10 @@ internal sealed class PluginConfig
                     CustomDrawer = DrawReset,
                 }));
 
-        _scale.SettingChanged += (_, __) => ClampScale();
-        _scaleStep.SettingChanged += (_, __) => ClampStep();
+        QuietClamp(_active, ProfileIndex.Clamp);
+        QuietClamp(_scaleStep, ClampStepValue);
+        _active.SettingChanged += (_, __) => OnActiveChanged();
+        _scaleStep.SettingChanged += (_, __) => QuietClamp(_scaleStep, ClampStepValue);
         _reset.SettingChanged += (_, __) =>
         {
             if (_reset.Value)
@@ -118,18 +120,32 @@ internal sealed class PluginConfig
         };
     }
 
-    public MinimapProfile Current =>
-        new MinimapProfile(_anchor.Value, _offsetX.Value, _offsetY.Value, _scale.Value, _repositionBuffs.Value);
+    public MinimapProfile Current => ActiveSlot().Read();
+
+    public bool Enabled => _enabled.Value;
 
     public void PollHotkeys()
     {
+        if (!_enabled.Value)
+        {
+            return;
+        }
+
         if (HotkeyInput.WasPressed(_increase.Value))
         {
-            SetScale(ScaleMath.Step(_scale.Value, _scaleStep.Value, 1));
+            SetScale(ScaleMath.Step(ActiveSlot().Scale.Value, _scaleStep.Value, 1));
         }
         else if (HotkeyInput.WasPressed(_decrease.Value))
         {
-            SetScale(ScaleMath.Step(_scale.Value, _scaleStep.Value, -1));
+            SetScale(ScaleMath.Step(ActiveSlot().Scale.Value, _scaleStep.Value, -1));
+        }
+        else if (HotkeyInput.WasPressed(_nextProfile.Value))
+        {
+            SetActive(ProfileIndex.Cycle(_active.Value, 1));
+        }
+        else if (HotkeyInput.WasPressed(_previousProfile.Value))
+        {
+            SetActive(ProfileIndex.Cycle(_active.Value, -1));
         }
     }
 
@@ -143,12 +159,7 @@ internal sealed class PluginConfig
         _updating = true;
         try
         {
-            var vanilla = MinimapProfile.Vanilla;
-            _scale.Value = vanilla.Scale;
-            _anchor.Value = vanilla.Anchor;
-            _offsetX.Value = vanilla.OffsetX;
-            _offsetY.Value = vanilla.OffsetY;
-            _repositionBuffs.Value = vanilla.RepositionBuffs;
+            ActiveSlot().Write(MinimapProfile.Vanilla);
             if (_reset.Value)
             {
                 _reset.Value = false;
@@ -170,23 +181,75 @@ internal sealed class PluginConfig
 
     void SetScale(float scale)
     {
-        if (Math.Abs(_scale.Value - scale) < 0.0001f)
+        var entry = ActiveSlot().Scale;
+        if (Math.Abs(entry.Value - scale) < 0.0001f)
         {
             return;
         }
 
-        _scale.Value = scale;
+        entry.Value = scale;
     }
 
-    void ClampScale()
+    void SetActive(int index)
+    {
+        index = ProfileIndex.Clamp(index);
+        if (_active.Value == index)
+        {
+            return;
+        }
+
+        _active.Value = index;
+    }
+
+    void OnActiveChanged()
     {
         if (_updating)
         {
             return;
         }
 
-        var clamped = ScaleMath.Clamp(_scale.Value);
-        if (Math.Abs(clamped - _scale.Value) < 0.0001f)
+        var index = ProfileIndex.Clamp(_active.Value);
+        if (index != _active.Value)
+        {
+            _updating = true;
+            try
+            {
+                _active.Value = index;
+            }
+            finally
+            {
+                _updating = false;
+            }
+        }
+
+        if (!_enabled.Value)
+        {
+            return;
+        }
+
+        var message = "Switched to Minimap Profile " + index.ToString();
+        _log.LogInfo(message);
+        var hud = MessageHud.instance;
+        if (hud != null)
+        {
+            hud.ShowMessage(MessageHud.MessageType.TopLeft, message);
+        }
+    }
+
+    ProfileSlot ActiveSlot()
+    {
+        return _slots[ProfileIndex.Clamp(_active.Value) - 1];
+    }
+
+    void QuietClamp(ConfigEntry<int> entry, Func<int, int> clamp)
+    {
+        if (_updating)
+        {
+            return;
+        }
+
+        var clamped = clamp(entry.Value);
+        if (clamped == entry.Value)
         {
             return;
         }
@@ -194,7 +257,7 @@ internal sealed class PluginConfig
         _updating = true;
         try
         {
-            _scale.Value = clamped;
+            entry.Value = clamped;
         }
         finally
         {
@@ -202,36 +265,256 @@ internal sealed class PluginConfig
         }
     }
 
-    void ClampStep()
+    void QuietClamp(ConfigEntry<float> entry, Func<float, float> clamp)
     {
         if (_updating)
         {
             return;
         }
 
-        var step = _scaleStep.Value;
+        var clamped = clamp(entry.Value);
+        if (Math.Abs(clamped - entry.Value) < 0.0001f)
+        {
+            return;
+        }
+
+        _updating = true;
+        try
+        {
+            entry.Value = clamped;
+        }
+        finally
+        {
+            _updating = false;
+        }
+    }
+
+    void ClampFloat(ConfigEntry<float> entry, Func<float, float> clamp)
+    {
+        entry.SettingChanged += (_, __) => QuietClamp(entry, clamp);
+    }
+
+    static float ClampStepValue(float step)
+    {
         if (float.IsNaN(step) || step < 0.05f)
         {
-            step = 0.05f;
-        }
-        else if (step > 1f)
-        {
-            step = 1f;
+            return 0.05f;
         }
 
-        if (Math.Abs(step - _scaleStep.Value) < 0.0001f)
+        if (step > 1f)
         {
-            return;
+            return 1f;
         }
 
-        _updating = true;
+        return step;
+    }
+
+    static void RegisterShapeAliases()
+    {
         try
         {
-            _scaleStep.Value = step;
+            TomlTypeConverter.AddConverter(typeof(MapShape), new TypeConverter
+            {
+                ConvertToString = (obj, type) => obj.ToString(),
+                ConvertToObject = (str, type) => ParseShape(str),
+            });
         }
-        finally
+        catch (ArgumentException)
         {
-            _updating = false;
+        }
+    }
+
+    static MapShape ParseShape(string value)
+    {
+        if (string.Equals(value, "Circle", StringComparison.OrdinalIgnoreCase))
+        {
+            return MapShape.Oval;
+        }
+
+        if (string.Equals(value, "Square", StringComparison.OrdinalIgnoreCase))
+        {
+            return MapShape.Rectangle;
+        }
+
+        return (MapShape)Enum.Parse(typeof(MapShape), value, true);
+    }
+
+    sealed class ProfileSlot
+    {
+        readonly ConfigEntry<float> _scale;
+        readonly ConfigEntry<MapAnchor> _anchor;
+        readonly ConfigEntry<float> _offsetX;
+        readonly ConfigEntry<float> _offsetY;
+        readonly ConfigEntry<bool> _repositionBuffs;
+        readonly ConfigEntry<MapShape> _shape;
+        readonly ConfigEntry<float> _alpha;
+        readonly ConfigEntry<float> _cornerRadius;
+        readonly ConfigEntry<float> _aspect;
+        readonly ConfigurationManagerAttributes _aspectAttributes;
+        readonly ConfigurationManagerAttributes _cornerAttributes;
+
+        ProfileSlot(
+            ConfigEntry<float> scale,
+            ConfigEntry<MapAnchor> anchor,
+            ConfigEntry<float> offsetX,
+            ConfigEntry<float> offsetY,
+            ConfigEntry<bool> repositionBuffs,
+            ConfigEntry<MapShape> shape,
+            ConfigEntry<float> alpha,
+            ConfigEntry<float> cornerRadius,
+            ConfigEntry<float> aspect,
+            ConfigurationManagerAttributes aspectAttributes,
+            ConfigurationManagerAttributes cornerAttributes)
+        {
+            _scale = scale;
+            _anchor = anchor;
+            _offsetX = offsetX;
+            _offsetY = offsetY;
+            _repositionBuffs = repositionBuffs;
+            _shape = shape;
+            _alpha = alpha;
+            _cornerRadius = cornerRadius;
+            _aspect = aspect;
+            _aspectAttributes = aspectAttributes;
+            _cornerAttributes = cornerAttributes;
+            _shape.SettingChanged += OnShapeChanged;
+            UpdateLocks();
+        }
+
+        void OnShapeChanged(object sender, EventArgs args)
+        {
+            UpdateLocks();
+        }
+
+        void UpdateLocks()
+        {
+            var unlocked = _shape.Value != MapShape.None;
+            _aspectAttributes.ReadOnly = !unlocked;
+            _cornerAttributes.ReadOnly = !unlocked || _shape.Value == MapShape.Oval;
+        }
+
+        public ConfigEntry<float> Scale => _scale;
+
+        public static ProfileSlot Bind(ConfigFile config, int index, Action<ConfigEntry<float>, Func<float, float>> clamp)
+        {
+            var section = index == 0 ? "Minimap" : "Minimap " + (index + 1).ToString();
+            var shape = config.Bind(
+                section,
+                "ShapeMask",
+                MapShape.None,
+                new ConfigDescription(
+                    "Extra clip on the small map. None keeps Valheim's shape, including changes from other mods. Oval is round, and aspect can stretch it. Rectangle uses corner radius.",
+                    null,
+                    new ConfigurationManagerAttributes { Order = 100, DispName = "Shape mask" }));
+            var legacyAlpha = config.Bind(
+                section,
+                "Alpha",
+                1f,
+                new ConfigDescription(
+                    "Replaced by Icon alpha.",
+                    null,
+                    new ConfigurationManagerAttributes { Browsable = false }));
+            var alpha = config.Bind(
+                section,
+                "IconAlpha",
+                legacyAlpha.Value,
+                new ConfigDescription(
+                    "Opacity of the frame, pins, and markers. Does not fade the terrain.",
+                    new AcceptableValueRange<float>(0f, 1f),
+                    new ConfigurationManagerAttributes { Order = 96, DispName = "Icon alpha" }));
+            config.Remove(legacyAlpha.Definition);
+            config.Save();
+            var scale = config.Bind(
+                section,
+                "Scale",
+                1f,
+                new ConfigDescription(
+                    "Minimap size relative to vanilla. 1 is the original size.",
+                    new AcceptableValueRange<float>(ScaleMath.Min, ScaleMath.Max),
+                    new ConfigurationManagerAttributes { Order = 90 }));
+            var anchor = config.Bind(
+                section,
+                "Anchor",
+                MapAnchor.TopRight,
+                new ConfigDescription(
+                    "Point of the minimap that stays in place when the size changes. Top-right grows down-left.",
+                    null,
+                    new ConfigurationManagerAttributes { Order = 80 }));
+            var offsetX = config.Bind(
+                section,
+                "OffsetX",
+                0f,
+                new ConfigDescription(
+                    "Moves the anchor horizontally, in HUD units, from its vanilla position.",
+                    new AcceptableValueRange<float>(-4000f, 4000f),
+                    new ConfigurationManagerAttributes { Order = 70 }));
+            var offsetY = config.Bind(
+                section,
+                "OffsetY",
+                0f,
+                new ConfigDescription(
+                    "Moves the anchor vertically, in HUD units, from its vanilla position.",
+                    new AcceptableValueRange<float>(-4000f, 4000f),
+                    new ConfigurationManagerAttributes { Order = 60 }));
+            var repositionBuffs = config.Bind(
+                section,
+                "RepositionBuffIcons",
+                true,
+                new ConfigDescription(
+                    "Slide buff icons off the minimap when they overlap it. Icons stay put when the map does not cover them.",
+                    null,
+                    new ConfigurationManagerAttributes { Order = 50 }));
+            var aspectAttributes = new ConfigurationManagerAttributes { Order = 40 };
+            var cornerAttributes = new ConfigurationManagerAttributes { Order = 30 };
+            var aspect = config.Bind(
+                section,
+                "Aspect",
+                1f,
+                new ConfigDescription(
+                    "Width relative to height of the shape mask. The map and icons stay 1:1. Above 1 hides more of the top and bottom. Below 1 hides more of the sides. Locked while shape mask is None.",
+                    new AcceptableValueRange<float>(AppearanceMath.MinAspect, AppearanceMath.MaxAspect),
+                    aspectAttributes));
+            var cornerRadius = config.Bind(
+                section,
+                "CornerRadius",
+                0f,
+                new ConfigDescription(
+                    "Corner roundness of the rectangle mask. 0 is sharp. 1 is a capsule. Locked for None and oval.",
+                    new AcceptableValueRange<float>(0f, 1f),
+                    cornerAttributes));
+
+            clamp(scale, ScaleMath.Clamp);
+            clamp(alpha, AppearanceMath.ClampAlpha);
+            clamp(aspect, AppearanceMath.ClampAspect);
+            clamp(cornerRadius, AppearanceMath.ClampCornerRadius);
+            return new ProfileSlot(scale, anchor, offsetX, offsetY, repositionBuffs, shape, alpha, cornerRadius, aspect, aspectAttributes, cornerAttributes);
+        }
+
+        public MinimapProfile Read()
+        {
+            return new MinimapProfile(
+                _anchor.Value,
+                _offsetX.Value,
+                _offsetY.Value,
+                _scale.Value,
+                _repositionBuffs.Value,
+                _shape.Value,
+                _alpha.Value,
+                _cornerRadius.Value,
+                _aspect.Value);
+        }
+
+        public void Write(MinimapProfile profile)
+        {
+            _scale.Value = profile.Scale;
+            _anchor.Value = profile.Anchor;
+            _offsetX.Value = profile.OffsetX;
+            _offsetY.Value = profile.OffsetY;
+            _repositionBuffs.Value = profile.RepositionBuffs;
+            _shape.Value = profile.Shape;
+            _alpha.Value = profile.Alpha;
+            _cornerRadius.Value = profile.CornerRadius;
+            _aspect.Value = profile.Aspect;
         }
     }
 }

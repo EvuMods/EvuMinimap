@@ -9,7 +9,6 @@ public static class LayoutSolver
         var pinnedX = vanillaBounds.X + (vanillaBounds.Width * anchorX) + profile.OffsetX;
         var pinnedY = vanillaBounds.Y + (vanillaBounds.Height * anchorY) + profile.OffsetY;
         parent.AnchorReference(anchorX, anchorY, out var referenceX, out var referenceY);
-
         return new RectLayout(
             anchorX,
             anchorY,

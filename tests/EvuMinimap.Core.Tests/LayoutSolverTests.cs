@@ -100,6 +100,50 @@ public sealed class LayoutSolverTests
     }
 
     [Fact]
+    public void Aspect_DoesNotStretchTheMap()
+    {
+        var shapes = new[] { MapShape.None, MapShape.Oval, MapShape.Rectangle };
+        foreach (var shape in shapes)
+        {
+            var profile = new MinimapProfile(MapAnchor.TopRight, 0f, 0f, 1f, true, shape, 1f, 0f, 2f);
+            var layout = Solve(profile);
+            Assert.Equal(1f, layout.ScaleX, 3);
+            Assert.Equal(1f, layout.ScaleY, 3);
+            AssertNear(VanillaBounds, LayoutSolver.Bounds(Parent, layout));
+        }
+    }
+
+    [Fact]
+    public void ClipWindow_AspectOne_FillsTheMap()
+    {
+        var window = AppearanceMath.ClipWindowFor(1f);
+        Assert.Equal(0f, window.X, 3);
+        Assert.Equal(0f, window.Y, 3);
+        Assert.Equal(1f, window.Width, 3);
+        Assert.Equal(1f, window.Height, 3);
+    }
+
+    [Fact]
+    public void ClipWindow_WideAspect_CropsTopAndBottom()
+    {
+        var window = AppearanceMath.ClipWindowFor(2f);
+        Assert.Equal(0f, window.X, 3);
+        Assert.Equal(0.25f, window.Y, 3);
+        Assert.Equal(1f, window.Width, 3);
+        Assert.Equal(0.5f, window.Height, 3);
+    }
+
+    [Fact]
+    public void ClipWindow_TallAspect_CropsTheSides()
+    {
+        var window = AppearanceMath.ClipWindowFor(0.5f);
+        Assert.Equal(0.25f, window.X, 3);
+        Assert.Equal(0f, window.Y, 3);
+        Assert.Equal(0.5f, window.Width, 3);
+        Assert.Equal(1f, window.Height, 3);
+    }
+
+    [Fact]
     public void VanillaScale_IsMultiplied()
     {
         var vanilla = new VanillaLayout(1f, 1f, 1f, 1f, -20f, -20f, 200f, 200f, 1.5f, 1.5f);
@@ -118,6 +162,10 @@ public sealed class LayoutSolverTests
         Assert.Equal(0f, profile.OffsetY);
         Assert.Equal(1f, profile.Scale);
         Assert.True(profile.RepositionBuffs);
+        Assert.Equal(MapShape.None, profile.Shape);
+        Assert.Equal(1f, profile.Alpha);
+        Assert.Equal(0f, profile.CornerRadius);
+        Assert.Equal(1f, profile.Aspect);
         AssertNear(VanillaBounds, LayoutSolver.Bounds(Parent, Solve(profile)));
     }
 

@@ -18,7 +18,7 @@ public sealed class Plugin : BaseUnityPlugin
             return;
         }
 
-        _settings = new PluginConfig(Config);
+        _settings = new PluginConfig(Config, Logger);
         _applier = new MinimapApplier(_settings, Logger);
         Harmony.CreateAndPatchAll(typeof(Plugin).Assembly, PluginInfo.Guid);
     }
