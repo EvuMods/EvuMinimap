@@ -8,7 +8,7 @@ public readonly struct MinimapProfile
     public static MinimapProfile Vanilla { get; } = new MinimapProfile(MapAnchor.TopRight, 0f, 0f, 1f, true);
 
     public MinimapProfile(MapAnchor anchor, float offsetX, float offsetY, float scale, bool repositionBuffs)
-        : this(anchor, offsetX, offsetY, scale, repositionBuffs, MapShape.None, 1f, 0f, 1f)
+        : this(anchor, offsetX, offsetY, scale, repositionBuffs, MapShape.None, 1f, 0f, 1f, true)
     {
     }
 
@@ -21,13 +21,15 @@ public readonly struct MinimapProfile
         MapShape shape,
         float alpha,
         float cornerRadius,
-        float aspect)
+        float aspect,
+        bool repositionShipHud = true)
     {
         Anchor = anchor;
         OffsetX = offsetX;
         OffsetY = offsetY;
         Scale = ScaleMath.Clamp(scale);
         RepositionBuffs = repositionBuffs;
+        RepositionShipHud = repositionShipHud;
         Shape = shape;
         Alpha = AppearanceMath.ClampAlpha(alpha);
         CornerRadius = AppearanceMath.ClampCornerRadius(cornerRadius);
@@ -44,6 +46,8 @@ public readonly struct MinimapProfile
 
     public bool RepositionBuffs { get; }
 
+    public bool RepositionShipHud { get; }
+
     public MapShape Shape { get; }
 
     public float Alpha { get; }
@@ -54,6 +58,6 @@ public readonly struct MinimapProfile
 
     public MinimapProfile WithScale(float scale)
     {
-        return new MinimapProfile(Anchor, OffsetX, OffsetY, scale, RepositionBuffs, Shape, Alpha, CornerRadius, Aspect);
+        return new MinimapProfile(Anchor, OffsetX, OffsetY, scale, RepositionBuffs, Shape, Alpha, CornerRadius, Aspect, RepositionShipHud);
     }
 }

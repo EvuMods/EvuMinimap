@@ -1,20 +1,58 @@
 namespace EvuMinimap.Core;
 
+public enum ClearanceSide
+{
+    Left,
+    Below,
+}
+
 public static class BuffPlacement
 {
     public const float Gap = 8f;
 
-    public static HudRect Place(HudRect map, HudRect vanillaBuffs, ParentRect parent, bool reposition)
+    public static HudRect Place(
+        HudRect map,
+        HudRect vanillaBuffs,
+        ParentRect parent,
+        bool reposition,
+        ClearanceSide prefer = ClearanceSide.Left)
     {
-        if (!reposition || !map.Intersects(vanillaBuffs, Gap))
+        return Place(map, map, vanillaBuffs, parent, reposition, prefer);
+    }
+
+    /// <summary>
+    /// <paramref name="blocking"/> decides whether the piece overlaps the map.
+    /// The spot itself is measured from <paramref name="map"/>, so a visual pad can
+    /// count as overlap without demanding that same pad of empty screen.
+    /// </summary>
+    public static HudRect Place(
+        HudRect map,
+        HudRect blocking,
+        HudRect vanillaBuffs,
+        ParentRect parent,
+        bool reposition,
+        ClearanceSide prefer)
+    {
+        if (!reposition || !blocking.Intersects(vanillaBuffs, Gap))
         {
             return vanillaBuffs;
         }
 
-        var left = Slide(vanillaBuffs, map.X - Gap - vanillaBuffs.Width, vanillaBuffs.Y);
-        if (Fits(left, map, parent))
+        if (prefer == ClearanceSide.Below)
         {
-            return left;
+            var preferred = Slide(vanillaBuffs, vanillaBuffs.X, map.Y - Gap - vanillaBuffs.Height);
+            if (Fits(preferred, map, parent))
+            {
+                return preferred;
+            }
+        }
+        else
+        {
+            var left = Slide(vanillaBuffs, map.X - Gap - vanillaBuffs.Width, vanillaBuffs.Y);
+            if (Fits(left, map, parent))
+            {
+                return left;
+            }
         }
 
         var below = Slide(vanillaBuffs, vanillaBuffs.X, map.Y - Gap - vanillaBuffs.Height);

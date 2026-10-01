@@ -80,6 +80,63 @@ public sealed class BuffPlacementTests
         AssertSame(new HudRect(0f, 50f, 100f, 100f), placed);
     }
 
+    [Fact]
+    public void Overlap_PrefersBelowTheMapForTheShipPanel()
+    {
+        var map = new HudRect(1500f, 700f, 400f, 300f);
+        var panel = new HudRect(1550f, 640f, 250f, 80f);
+        var placed = BuffPlacement.Place(map, panel, Screen, reposition: true, ClearanceSide.Below);
+        AssertSame(new HudRect(1550f, 612f, 250f, 80f), placed);
+    }
+
+    [Fact]
+    public void BelowPreference_MovesAsideWhenTheScreenHasNoRoomUnderTheMap()
+    {
+        var parent = new ParentRect(0f, 0f, 1920f, 1080f);
+        var map = new HudRect(1500f, 20f, 400f, 1040f);
+        var panel = new HudRect(1600f, 40f, 180f, 100f);
+        var placed = BuffPlacement.Place(map, panel, parent, reposition: true, ClearanceSide.Below);
+        AssertSame(new HudRect(1312f, 490f, 180f, 100f), placed);
+    }
+
+    [Fact]
+    public void BelowPreference_UsesTheVisibleEdgeWhenThePadWouldFallOffScreen()
+    {
+        var parent = new ParentRect(0f, 0f, 1920f, 1080f);
+        var map = new HudRect(1400f, 100f, 500f, 900f);
+        var panel = new HudRect(1500f, 120f, 130f, 80f);
+        var padded = new HudRect(map.X - 18f, map.Y - 18f, map.Width + 36f, map.Height + 36f);
+        var placed = BuffPlacement.Place(map, padded, panel, parent, true, ClearanceSide.Below);
+        AssertSame(new HudRect(1500f, 12f, 130f, 80f), placed);
+    }
+
+    [Fact]
+    public void ScaleThree_Ultrawide_KeepsTheVanillaWindIndicatorBelowTheMap()
+    {
+        var parent = new ParentRect(-2560f, -720f, 5120f, 1440f);
+        var vanillaMap = new VanillaLayout(1f, 1f, 1f, 1f, -40f, -40f, 200f, 200f, 1f, 1f);
+        var wind = LayoutSolver.Bounds(
+            parent,
+            new RectLayout(1f, 1f, 0.5f, 0.5f, -146f, -437f, 130f, 130f, 1f, 1f));
+        var profile = new MinimapProfile(MapAnchor.TopRight, 0f, 0f, 3f, true);
+        var map = LayoutSolver.Bounds(parent, LayoutSolver.Solve(vanillaMap, parent, profile));
+        var padded = new HudRect(map.X - 18f, map.Y - 18f, map.Width + 36f, map.Height + 36f);
+        var placed = BuffPlacement.Place(map, padded, wind, parent, true, ClearanceSide.Below);
+
+        Assert.Equal(wind.X, placed.X, 2);
+        Assert.True(placed.X + 1f >= map.X);
+        Assert.True(placed.Top <= map.Y);
+    }
+
+    [Fact]
+    public void ClearMap_LeavesTheShipPanelWhereValheimPutIt()
+    {
+        var map = new HudRect(1500f, 700f, 400f, 300f);
+        var panel = new HudRect(1550f, 500f, 250f, 80f);
+        var placed = BuffPlacement.Place(map, panel, Screen, reposition: true, ClearanceSide.Below);
+        AssertSame(panel, placed);
+    }
+
     static void AssertSame(HudRect expected, HudRect actual)
     {
         Assert.Equal(expected.X, actual.X, 2);

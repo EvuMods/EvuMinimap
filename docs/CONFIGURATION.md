@@ -8,7 +8,7 @@ The plugin soft-depends on `com.bepis.bepinex.configurationmanager` so that mana
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| Enabled | true | When off, the small minimap and buff strip stay vanilla. Saved profiles and hotkeys remain in the file and apply again when this is on. |
+| Enabled | true | When off, the small minimap, buff strip, and ship wind panel stay vanilla. Saved profiles and hotkeys remain in the file and apply again when this is on. |
 
 ## Minimap
 
@@ -19,6 +19,7 @@ The plugin soft-depends on `com.bepis.bepinex.configurationmanager` so that mana
 | OffsetX | 0 | -4000 to 4000 | Horizontal shift of that anchor, in HUD units, from its vanilla position. |
 | OffsetY | 0 | -4000 to 4000 | Vertical shift of that anchor, in HUD units, from its vanilla position. |
 | RepositionBuffIcons | true | bool | When the minimap overlaps the buff strip, slide the strip to the left of the map when that fits. Otherwise use the side with the most free space. When there is no overlap, the strip stays at the vanilla position. |
+| RepositionShipHud | true | bool | Slide the boat wind panel below the minimap when they overlap, if that spot fits on screen. Shown as "Move ship wind". Otherwise it moves to the side with the most room. It stays put when the map does not cover it. |
 | ShapeMask | None | None, Oval, Rectangle | Extra clip. None keeps Valheim's shape, including changes from other mods. Shown as "Shape mask". |
 | IconAlpha | 1 | 0 to 1 | Opacity of the frame, pins, and markers. Shown as "Icon alpha". Does not fade the terrain. |
 | Aspect | 1 | 0.5 to 2 | Width/height of the shape mask. The map and icons stay 1:1. Above 1 crops the top and bottom. Below 1 crops the sides. Locked while shape mask is None. |
@@ -54,7 +55,7 @@ The binding is stored with Left Alt. The press check treats Right Alt as the sam
 
 | Key | Meaning |
 | --- | --- |
-| ResetToVanilla | Restores the active profile: scale, anchor, both offsets, buff reposition, shape mask, and icon alpha. Does not change hotkeys, the scale step, or the other profiles. |
+| ResetToVanilla | Restores the active profile: scale, anchor, both offsets, buff reposition, ship wind, shape mask, and icon alpha. Does not change hotkeys, the scale step, or the other profiles. |
 
 Configuration Manager draws this as a **Reset to vanilla** button. A manager that ignores custom drawers can set `ResetToVanilla = true`. The plugin resets and writes the flag back to false.
 

@@ -49,11 +49,12 @@ For that chain to publish on its own, the release-please workflow dispatches its
 
 There is no automated playtest here. After a HUD change, confirm:
 
-- Turning Enabled off restores the vanilla minimap, shape, icon alpha, and buff strip. Hotkeys do nothing until it is on again.
+- Turning Enabled off restores the vanilla minimap, shape, icon alpha, buff strip, and ship wind panel. Hotkeys do nothing until it is on again.
 - Scale 1, top-right, zero offset matches vanilla.
 - Raising the scale grows away from the chosen anchor.
 - Alt+Numpad plus and minus change one step, and either Alt key works.
 - Buff icons move to the left of a larger top-right map, and stay in the vanilla corner if the map is moved to the other side of the screen.
+- On a boat, a larger top-right map pushes the wind panel below the map. The panel stays put when the map does not cover it.
 - Alt+Numpad multiply and divide cycle profiles 1 through 5, and the top-left toast says which one is active.
 - Shape mask None matches the vanilla minimap. Oval and rectangle crop the terrain as well as the frame and pins. Lowering icon alpha fades the frame, pins, and markers. The terrain stays opaque.
 - Reset returns the active profile. Hotkeys and the other profiles stay bound.

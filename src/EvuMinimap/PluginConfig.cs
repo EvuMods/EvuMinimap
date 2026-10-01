@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using EvuMinimap.Core;
@@ -23,13 +24,13 @@ internal sealed class PluginConfig
     public PluginConfig(ConfigFile config, ManualLogSource log)
     {
         _log = log;
-        RegisterShapeAliases();
+        MigrateShapeNames(config);
         _enabled = config.Bind(
             "General",
             "Enabled",
             true,
             new ConfigDescription(
-                "When off, the small minimap and buff strip stay vanilla. Saved profiles and hotkeys remain in this file and apply again when this is on.",
+                "When off, the small minimap, buff strip, and ship wind panel stay vanilla. Saved profiles and hotkeys remain in this file and apply again when this is on.",
                 null,
                 new ConfigurationManagerAttributes { Order = 100 }));
         _slots = new ProfileSlot[ProfileIndex.Count];
@@ -97,7 +98,7 @@ internal sealed class PluginConfig
             "ResetToVanilla",
             false,
             new ConfigDescription(
-                "Restore the active profile: scale, anchor, offset, buff reposition, shape mask, and icon alpha. Hotkeys and the other profiles are kept.",
+                "Restore the active profile: scale, anchor, offset, buff reposition, ship wind, shape mask, and icon alpha. Hotkeys and the other profiles are kept.",
                 null,
                 new ConfigurationManagerAttributes
                 {
@@ -309,34 +310,27 @@ internal sealed class PluginConfig
         return step;
     }
 
-    static void RegisterShapeAliases()
+    static void MigrateShapeNames(ConfigFile config)
     {
-        try
+        // BepInEx already has one converter for every enum, and GetConverter never
+        // consults a per-type converter for them. AddConverter only logs a warning.
+        var path = config.ConfigFilePath;
+        if (string.IsNullOrEmpty(path) || !File.Exists(path))
         {
-            TomlTypeConverter.AddConverter(typeof(MapShape), new TypeConverter
-            {
-                ConvertToString = (obj, type) => obj.ToString(),
-                ConvertToObject = (str, type) => ParseShape(str),
-            });
-        }
-        catch (ArgumentException)
-        {
-        }
-    }
-
-    static MapShape ParseShape(string value)
-    {
-        if (string.Equals(value, "Circle", StringComparison.OrdinalIgnoreCase))
-        {
-            return MapShape.Oval;
+            return;
         }
 
-        if (string.Equals(value, "Square", StringComparison.OrdinalIgnoreCase))
+        var text = File.ReadAllText(path);
+        var updated = text
+            .Replace("ShapeMask = Circle", "ShapeMask = Oval")
+            .Replace("ShapeMask = Square", "ShapeMask = Rectangle");
+        if (updated == text)
         {
-            return MapShape.Rectangle;
+            return;
         }
 
-        return (MapShape)Enum.Parse(typeof(MapShape), value, true);
+        File.WriteAllText(path, updated);
+        config.Reload();
     }
 
     sealed class ProfileSlot
@@ -346,6 +340,7 @@ internal sealed class PluginConfig
         readonly ConfigEntry<float> _offsetX;
         readonly ConfigEntry<float> _offsetY;
         readonly ConfigEntry<bool> _repositionBuffs;
+        readonly ConfigEntry<bool> _repositionShipHud;
         readonly ConfigEntry<MapShape> _shape;
         readonly ConfigEntry<float> _alpha;
         readonly ConfigEntry<float> _cornerRadius;
@@ -359,6 +354,7 @@ internal sealed class PluginConfig
             ConfigEntry<float> offsetX,
             ConfigEntry<float> offsetY,
             ConfigEntry<bool> repositionBuffs,
+            ConfigEntry<bool> repositionShipHud,
             ConfigEntry<MapShape> shape,
             ConfigEntry<float> alpha,
             ConfigEntry<float> cornerRadius,
@@ -371,6 +367,7 @@ internal sealed class PluginConfig
             _offsetX = offsetX;
             _offsetY = offsetY;
             _repositionBuffs = repositionBuffs;
+            _repositionShipHud = repositionShipHud;
             _shape = shape;
             _alpha = alpha;
             _cornerRadius = cornerRadius;
@@ -464,6 +461,14 @@ internal sealed class PluginConfig
                     "Slide buff icons off the minimap when they overlap it. Icons stay put when the map does not cover them.",
                     null,
                     new ConfigurationManagerAttributes { Order = 50 }));
+            var repositionShipHud = config.Bind(
+                section,
+                "RepositionShipHud",
+                true,
+                new ConfigDescription(
+                    "Slide the boat wind panel below the minimap when they overlap, if that spot fits on screen. Otherwise it moves to the side with the most room. It stays put when the map does not cover it.",
+                    null,
+                    new ConfigurationManagerAttributes { Order = 45, DispName = "Move ship wind" }));
             var aspectAttributes = new ConfigurationManagerAttributes { Order = 40 };
             var cornerAttributes = new ConfigurationManagerAttributes { Order = 30 };
             var aspect = config.Bind(
@@ -487,7 +492,7 @@ internal sealed class PluginConfig
             clamp(alpha, AppearanceMath.ClampAlpha);
             clamp(aspect, AppearanceMath.ClampAspect);
             clamp(cornerRadius, AppearanceMath.ClampCornerRadius);
-            return new ProfileSlot(scale, anchor, offsetX, offsetY, repositionBuffs, shape, alpha, cornerRadius, aspect, aspectAttributes, cornerAttributes);
+            return new ProfileSlot(scale, anchor, offsetX, offsetY, repositionBuffs, repositionShipHud, shape, alpha, cornerRadius, aspect, aspectAttributes, cornerAttributes);
         }
 
         public MinimapProfile Read()
@@ -501,7 +506,8 @@ internal sealed class PluginConfig
                 _shape.Value,
                 _alpha.Value,
                 _cornerRadius.Value,
-                _aspect.Value);
+                _aspect.Value,
+                _repositionShipHud.Value);
         }
 
         public void Write(MinimapProfile profile)
@@ -511,6 +517,7 @@ internal sealed class PluginConfig
             _offsetX.Value = profile.OffsetX;
             _offsetY.Value = profile.OffsetY;
             _repositionBuffs.Value = profile.RepositionBuffs;
+            _repositionShipHud.Value = profile.RepositionShipHud;
             _shape.Value = profile.Shape;
             _alpha.Value = profile.Alpha;
             _cornerRadius.Value = profile.CornerRadius;

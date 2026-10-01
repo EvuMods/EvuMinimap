@@ -27,10 +27,13 @@ public readonly struct HudRect
 
     public bool Intersects(HudRect other, float margin)
     {
-        return X - margin < other.Right
-            && Right + margin > other.X
-            && Y - margin < other.Top
-            && Top + margin > other.Y;
+        // A slot placed exactly one gap away can still test as overlapping after
+        // float rounding. A fraction of a pixel does not cover the map.
+        const float slack = 0.5f;
+        return X - margin < other.Right - slack
+            && Right + margin > other.X + slack
+            && Y - margin < other.Top - slack
+            && Top + margin > other.Y + slack;
     }
 
     public bool FitsInside(ParentRect parent)

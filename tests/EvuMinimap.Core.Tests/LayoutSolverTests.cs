@@ -162,6 +162,7 @@ public sealed class LayoutSolverTests
         Assert.Equal(0f, profile.OffsetY);
         Assert.Equal(1f, profile.Scale);
         Assert.True(profile.RepositionBuffs);
+        Assert.True(profile.RepositionShipHud);
         Assert.Equal(MapShape.None, profile.Shape);
         Assert.Equal(1f, profile.Alpha);
         Assert.Equal(0f, profile.CornerRadius);

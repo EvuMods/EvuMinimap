@@ -30,6 +30,10 @@ internal sealed class MinimapApplier
     VanillaLayout _vanillaMap;
     RectFields _vanillaBuffs;
     int _buffId;
+    RectFields _vanillaShip;
+    int _shipId;
+    int _shipIconId;
+    Vector2 _shipIconVanilla;
 
     public MinimapApplier(PluginConfig config, BepInEx.Logging.ManualLogSource log)
     {
@@ -50,6 +54,7 @@ internal sealed class MinimapApplier
         if (Game.m_noMap)
         {
             RestoreBuffs();
+            RestoreShip();
             RestoreCustomTints();
             return;
         }
@@ -70,6 +75,7 @@ internal sealed class MinimapApplier
         if (!showSmall)
         {
             RestoreBuffs();
+            RestoreShip();
             RestoreCustomTints();
             return;
         }
@@ -98,15 +104,27 @@ internal sealed class MinimapApplier
         if (buffs == null || !_moveBuffs || !profile.RepositionBuffs)
         {
             RestoreBuffs();
-            return;
+        }
+        else
+        {
+            PlacePiece(parent, layout, buffs, ref _vanillaBuffs, ref _buffId, ClearanceSide.Left);
         }
 
-        PlaceBuffs(parent, layout, buffs);
+        var ship = ShipRect(hud);
+        if (ship == null || !profile.RepositionShipHud)
+        {
+            RestoreShip();
+        }
+        else
+        {
+            PlacePiece(parent, layout, ship, ref _vanillaShip, ref _shipId, ClearanceSide.Below, padFirst: true);
+            SyncShipIcon(hud, ship);
+        }
     }
 
     void ReleaseToVanilla()
     {
-        if (!_touched && !_capturedMap && _clip == null && _buffId == 0 && _canvasGroup == null && _tinted.Count == 0)
+        if (!_touched && !_capturedMap && _clip == null && _buffId == 0 && _shipId == 0 && _shipIconId == 0 && _canvasGroup == null && _tinted.Count == 0)
         {
             return;
         }
@@ -137,12 +155,14 @@ internal sealed class MinimapApplier
         _tinted.Clear();
         _tintBase.Clear();
         _tintSeen.Clear();
-        if (!RestoreBuffs())
+        if (!RestoreBuffs() || !RestoreShip())
         {
             return;
         }
 
         _buffId = 0;
+        _shipId = 0;
+        _shipIconId = 0;
         _touched = false;
     }
 
@@ -505,60 +525,134 @@ internal sealed class MinimapApplier
         return -1;
     }
 
-    void PlaceBuffs(RectTransform mapParent, RectLayout layout, RectTransform buffs)
+    static RectTransform? ShipRect(Hud? hud)
     {
-        var buffParent = buffs.parent as RectTransform;
+        // The ring and boat sit on this rect, just under the minimap.
+        // m_shipHudRoot is the rudder and sail cluster, and its rect does not meet the map.
+        return hud != null ? hud.m_shipWindIndicatorRoot : null;
+    }
+
+    void PlacePiece(
+        RectTransform mapParent,
+        RectLayout layout,
+        RectTransform piece,
+        ref RectFields vanilla,
+        ref int id,
+        ClearanceSide prefer,
+        bool padFirst = false)
+    {
+        var pieceParent = piece.parent as RectTransform;
         var canvas = CanvasOf(mapParent);
-        if (buffParent == null || canvas == null)
+        if (pieceParent == null || canvas == null)
         {
             return;
         }
 
-        if (_buffId != buffs.GetInstanceID())
+        if (id != piece.GetInstanceID())
         {
-            _vanillaBuffs = ReadFields(buffs);
-            _buffId = buffs.GetInstanceID();
+            vanilla = ReadFields(piece);
+            id = piece.GetInstanceID();
         }
 
         var mapBounds = LayoutSolver.Bounds(ReadParent(mapParent), layout);
         var mapCanvas = ToSpace(mapBounds, mapParent, canvas);
-        var vanillaBounds = LayoutSolver.Bounds(ReadParent(buffParent), _vanillaBuffs);
-        var vanillaCanvas = ToSpace(vanillaBounds, buffParent, canvas);
+        var blocking = padFirst ? Inflate(mapCanvas, BuffVisualPad) : mapCanvas;
+
+        var vanillaBounds = LayoutSolver.Bounds(ReadParent(pieceParent), vanilla);
+        var vanillaCanvas = ToSpace(vanillaBounds, pieceParent, canvas);
         var canvasSpace = ReadParent(canvas);
-        var desiredCanvas = BuffPlacement.Place(mapCanvas, vanillaCanvas, canvasSpace, reposition: true);
-        if (!Nearly(desiredCanvas.X, vanillaCanvas.X) || !Nearly(desiredCanvas.Y, vanillaCanvas.Y))
+        var desiredCanvas = BuffPlacement.Place(mapCanvas, blocking, vanillaCanvas, canvasSpace, true, prefer);
+        if (!padFirst && (!Nearly(desiredCanvas.X, vanillaCanvas.X) || !Nearly(desiredCanvas.Y, vanillaCanvas.Y)))
         {
-            var padded = new HudRect(
-                mapCanvas.X - BuffVisualPad,
-                mapCanvas.Y - BuffVisualPad,
-                mapCanvas.Width + (BuffVisualPad * 2f),
-                mapCanvas.Height + (BuffVisualPad * 2f));
-            desiredCanvas = BuffPlacement.Place(padded, vanillaCanvas, canvasSpace, reposition: true);
+            desiredCanvas = BuffPlacement.Place(Inflate(mapCanvas, BuffVisualPad), vanillaCanvas, canvasSpace, reposition: true, prefer);
         }
-        var desiredParent = ToSpace(desiredCanvas, canvas, buffParent);
-        WriteBuff(buffs, _vanillaBuffs, desiredParent.X - vanillaBounds.X, desiredParent.Y - vanillaBounds.Y);
+
+        var desiredParent = ToSpace(desiredCanvas, canvas, pieceParent);
+        WriteBuff(piece, vanilla, desiredParent.X - vanillaBounds.X, desiredParent.Y - vanillaBounds.Y);
+    }
+
+    static HudRect Inflate(HudRect rect, float pad)
+    {
+        return new HudRect(rect.X - pad, rect.Y - pad, rect.Width + (pad * 2f), rect.Height + (pad * 2f));
+    }
+
+    void SyncShipIcon(Hud? hud, RectTransform indicator)
+    {
+        var icon = hud != null ? hud.m_shipWindIconRoot : null;
+        if (icon == null || icon == indicator || icon.IsChildOf(indicator) || icon.parent != indicator.parent)
+        {
+            return;
+        }
+
+        if (_shipIconId != icon.GetInstanceID())
+        {
+            _shipIconVanilla = icon.anchoredPosition;
+            _shipIconId = icon.GetInstanceID();
+        }
+
+        var target = _shipIconVanilla + (indicator.anchoredPosition - new Vector2(_vanillaShip.AnchoredX, _vanillaShip.AnchoredY));
+        if (icon.anchoredPosition != target)
+        {
+            icon.anchoredPosition = target;
+        }
+    }
+
+    void RestoreShipIcon()
+    {
+        if (_shipIconId == 0)
+        {
+            return;
+        }
+
+        var hud = Hud.instance;
+        var icon = hud != null ? hud.m_shipWindIconRoot : null;
+        if (icon == null || icon.GetInstanceID() != _shipIconId)
+        {
+            return;
+        }
+
+        if (icon.anchoredPosition != _shipIconVanilla)
+        {
+            icon.anchoredPosition = _shipIconVanilla;
+        }
+    }
+
+    bool RestoreShip()
+    {
+        var restored = RestorePiece(_shipId, _vanillaShip, ShipRect(Hud.instance));
+        if (restored)
+        {
+            RestoreShipIcon();
+        }
+
+        return restored;
     }
 
     bool RestoreBuffs()
     {
-        if (_buffId == 0)
+        var hud = Hud.instance;
+        var buffs = hud != null ? hud.m_statusEffectListRoot : null;
+        return RestorePiece(_buffId, _vanillaBuffs, buffs);
+    }
+
+    bool RestorePiece(int id, RectFields saved, RectTransform? piece)
+    {
+        if (id == 0)
         {
             return true;
         }
 
-        var hud = Hud.instance;
-        var buffs = hud != null ? hud.m_statusEffectListRoot : null;
-        if (buffs == null)
+        if (piece == null)
         {
             return false;
         }
 
-        if (buffs.GetInstanceID() != _buffId)
+        if (piece.GetInstanceID() != id)
         {
             return true;
         }
 
-        WriteBuff(buffs, _vanillaBuffs, 0f, 0f);
+        WriteBuff(piece, saved, 0f, 0f);
         return true;
     }
 
