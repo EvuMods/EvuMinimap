@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/EvuMods/EvuMinimap/compare/v0.1.1...v0.2.0) (2026-10-01)
+
+
+### Features
+
+* keep the zone name and wind arrow outside the shape mask ([9f56fa1](https://github.com/EvuMods/EvuMinimap/commit/9f56fa1cc6c95e5ac3d0e5e5aaeadf55938298d3))
+* slide the boat wind panel clear of the minimap ([cacff10](https://github.com/EvuMods/EvuMinimap/commit/cacff10bfec555a81feffebce8c8a3c9e89900cc))
+
 ## [0.1.1](https://github.com/EvuMods/EvuMinimap/compare/v0.1.0...v0.1.1) (2026-10-01)
 
 
