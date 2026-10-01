@@ -62,5 +62,8 @@ jobs:
         if: steps.release.outputs.release_created == 'true'
         with:
           tag_name: ${{ steps.release.outputs.tag_name }}
-          files: dist/EvuMinimap-*.zip
+          files: |
+            dist/EvuMinimap-*.zip
+            src/EvuMinimap/bin/Release/EvuMinimap.dll
+            src/EvuMinimap/bin/Release/EvuMinimap.Core.dll
           fail_on_unmatched_files: true

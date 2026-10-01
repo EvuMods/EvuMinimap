@@ -31,6 +31,8 @@ make package
 
 `make verify` is the gate: fetch references if needed, build, and test. `make package` writes `dist/EvuMinimap-<version>.zip` in the Hexium layout: `manifest.json`, `icon.png`, `README.md`, `CHANGELOG.md`, `EvuMinimap.dll`, and `EvuMinimap.Core.dll` all at the zip root. `version_number` in the packaged manifest is taken from `version.txt`. BepInExPack is not a manifest dependency; Hexium assumes it and strips that entry on upload.
 
+The release workflow attaches that zip and the two raw DLLs to the GitHub release. The Thunderstore workflow is manual. Run it from Actions, leave the tag empty to package the selected branch, or set a release tag such as `v0.1.0`. It publishes team `EvuMods` to the Valheim community with categories Mods, AI Generated, Client-side, Tweaks, and the update slug from the `game_category` input (`deep-north-update` today). NSFW is off. The service account token belongs in the `TCLI_AUTH_TOKEN` repository secret, not in the repo.
+
 ## Version
 
 `version.txt` is the version. `Directory.Build.props` reads it, and the plugin's `BepInPlugin` version is generated from that property. release-please updates `version.txt` and `CHANGELOG.md`.
