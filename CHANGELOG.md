@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/EvuMods/EvuMinimap/compare/v0.1.0...v0.1.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* open a patch release to verify version files ([9e9a756](https://github.com/EvuMods/EvuMinimap/commit/9e9a7568198c95ce60b92bf4882da65bcb18a1de))
+
 ## 0.1.0 (2026-10-01)
 
 
