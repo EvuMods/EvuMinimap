@@ -12,17 +12,14 @@ internal static class ShapeMaskSprites
 
     public static Sprite Get(MapShape shape, float cornerRadius, float aspect)
     {
-        var radiusKey = shape == MapShape.Oval
-            ? 100
-            : (int)Math.Round(AppearanceMath.ClampCornerRadius(cornerRadius) * 100f);
-        var aspectKey = (int)Math.Round(AppearanceMath.ClampAspect(aspect) * 100f);
-        var key = ((int)shape * 100000) + (radiusKey * 1000) + aspectKey;
+        var key = ShapeKey.For(shape, cornerRadius, aspect);
         if (Cache.TryGetValue(key, out var existing))
         {
             return existing;
         }
 
-        var sprite = Create(shape, radiusKey / 100f, aspectKey / 100f);
+        var radius = shape == MapShape.Oval ? 1f : AppearanceMath.ClampCornerRadius(cornerRadius);
+        var sprite = Create(shape, radius, AppearanceMath.ClampAspect(aspect));
         Cache[key] = sprite;
         return sprite;
     }

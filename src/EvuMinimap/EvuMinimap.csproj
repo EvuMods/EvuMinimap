@@ -17,10 +17,6 @@
       <HintPath>$(BepInExCore)/BepInEx.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="0Harmony">
-      <HintPath>$(BepInExCore)/0Harmony.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
     <Reference Include="assembly_valheim">
       <HintPath>$(ValheimManaged)/assembly_valheim.dll</HintPath>
       <Private>false</Private>

@@ -32,7 +32,11 @@ internal sealed class MinimapApplier
     readonly List<bool> _outsideMaskWas = new List<bool>();
     readonly List<Graphic> _tinted = new List<Graphic>();
     readonly List<Color> _tintBase = new List<Color>();
-    readonly List<Graphic> _tintSeen = new List<Graphic>();
+    readonly HashSet<int> _tintSeen = new HashSet<int>();
+    int _tintHierarchy = -1;
+    int _tintFrame;
+    int _outsideWindId;
+    int _outsideBiomeId;
     VanillaLayout _vanillaMap;
     RectFields _vanillaBuffs;
     int _buffId;
@@ -102,7 +106,10 @@ internal sealed class MinimapApplier
         var layout = LayoutSolver.Solve(_vanillaMap, ReadParent(parent), profile);
         Apply(small, layout);
         ApplyShape(minimap, small.gameObject, profile);
-        KeepOutsideMask(minimap);
+        if (profile.Shape != MapShape.None)
+        {
+            KeepOutsideMask(minimap);
+        }
         ApplyAlpha(minimap, small.gameObject, profile.Alpha);
         _touched = true;
 
@@ -160,9 +167,7 @@ internal sealed class MinimapApplier
         UseLiveMapMaterial(minimap, clip: false);
         RestoreAlpha(root);
         RestoreCustomTints();
-        _tinted.Clear();
-        _tintBase.Clear();
-        _tintSeen.Clear();
+        ClearTintTracking();
         if (!RestoreBuffs() || !RestoreShip())
         {
             return;
@@ -195,6 +200,7 @@ internal sealed class MinimapApplier
         {
             ReleaseClip(root);
             UseLiveMapMaterial(minimap, clip: false);
+            RestoreOutsideMask();
             return;
         }
 
@@ -296,8 +302,18 @@ internal sealed class MinimapApplier
 
     void KeepOutsideMask(Minimap minimap)
     {
-        NoteOutside(minimap.m_windMarker);
-        NoteOutside(BiomeName(minimap));
+        var wind = minimap.m_windMarker;
+        var biome = BiomeName(minimap);
+        var windId = wind != null ? wind.GetInstanceID() : 0;
+        var biomeId = biome != null ? biome.GetInstanceID() : 0;
+        if (windId != _outsideWindId || biomeId != _outsideBiomeId)
+        {
+            _outsideWindId = windId;
+            _outsideBiomeId = biomeId;
+            NoteOutside(wind);
+            NoteOutside(biome);
+        }
+
         for (var i = 0; i < _outsideMask.Count; i++)
         {
             var graphic = _outsideMask[i];
@@ -347,6 +363,8 @@ internal sealed class MinimapApplier
 
         _outsideMask.Clear();
         _outsideMaskWas.Clear();
+        _outsideWindId = 0;
+        _outsideBiomeId = 0;
     }
 
     void UseLiveMapMaterial(Minimap minimap, bool clip)
@@ -487,16 +505,43 @@ internal sealed class MinimapApplier
 
     void TintCustomShaders(GameObject root, RawImage? map, float alpha)
     {
+        if (Nearly(alpha, 1f))
+        {
+            if (_tinted.Count > 0)
+            {
+                RestoreCustomTints();
+                ClearTintTracking();
+            }
+
+            return;
+        }
+
+        var hierarchy = root.transform.hierarchyCount;
+        _tintFrame++;
+        if (hierarchy != _tintHierarchy || (_tintFrame % 60) == 0)
+        {
+            _tintHierarchy = hierarchy;
+            PruneDestroyedTints();
+            _tintSeen.Clear();
+            for (var i = 0; i < _tinted.Count; i++)
+            {
+                var kept = _tinted[i];
+                if (kept != null)
+                {
+                    _tintSeen.Add(kept.GetInstanceID());
+                }
+            }
+        }
+
         var graphics = root.GetComponentsInChildren<Graphic>(true);
         for (var i = 0; i < graphics.Length; i++)
         {
             var graphic = graphics[i];
-            if (graphic == null || graphic == map || Seen(graphic))
+            if (graphic == null || graphic == map || !_tintSeen.Add(graphic.GetInstanceID()))
             {
                 continue;
             }
 
-            _tintSeen.Add(graphic);
             var mat = graphic.material;
             if (mat == null || mat.shader == null || !mat.HasProperty("_Color"))
             {
@@ -561,17 +606,24 @@ internal sealed class MinimapApplier
         }
     }
 
-    bool Seen(Graphic graphic)
+    void PruneDestroyedTints()
     {
-        for (var i = 0; i < _tintSeen.Count; i++)
+        for (var i = _tinted.Count - 1; i >= 0; i--)
         {
-            if (_tintSeen[i] == graphic)
+            if (_tinted[i] == null)
             {
-                return true;
+                _tinted.RemoveAt(i);
+                _tintBase.RemoveAt(i);
             }
         }
+    }
 
-        return false;
+    void ClearTintTracking()
+    {
+        _tinted.Clear();
+        _tintBase.Clear();
+        _tintSeen.Clear();
+        _tintHierarchy = -1;
     }
 
     int BaseFor(Material mat)

@@ -127,7 +127,7 @@ internal sealed class PluginConfig
 
     public void PollHotkeys()
     {
-        if (!_enabled.Value)
+        if (!_enabled.Value || InputFocused())
         {
             return;
         }
@@ -148,6 +148,22 @@ internal sealed class PluginConfig
         {
             SetActive(ProfileIndex.Cycle(_active.Value, -1));
         }
+    }
+
+    static bool InputFocused()
+    {
+        if (Console.IsVisible())
+        {
+            return true;
+        }
+
+        var chat = Chat.instance;
+        if (chat != null && chat.HasFocus())
+        {
+            return true;
+        }
+
+        return TextInput.IsVisible();
     }
 
     public void ApplyVanilla()
@@ -403,24 +419,26 @@ internal sealed class PluginConfig
                     "Extra clip on the small map. None keeps Valheim's shape, including changes from other mods. Oval is round, and aspect can stretch it. Rectangle uses corner radius.",
                     null,
                     new ConfigurationManagerAttributes { Order = 100, DispName = "Shape mask" }));
-            var legacyAlpha = config.Bind(
-                section,
-                "Alpha",
-                1f,
-                new ConfigDescription(
-                    "Replaced by Icon alpha.",
-                    null,
-                    new ConfigurationManagerAttributes { Browsable = false }));
+            var alphaDefault = 1f;
+            var hadLegacyAlpha = config.TryGetEntry<float>(section, "Alpha", out var legacyAlpha);
+            if (hadLegacyAlpha)
+            {
+                alphaDefault = legacyAlpha.Value;
+            }
+
             var alpha = config.Bind(
                 section,
                 "IconAlpha",
-                legacyAlpha.Value,
+                alphaDefault,
                 new ConfigDescription(
                     "Opacity of the frame, pins, and markers. Does not fade the terrain.",
                     new AcceptableValueRange<float>(0f, 1f),
                     new ConfigurationManagerAttributes { Order = 96, DispName = "Icon alpha" }));
-            config.Remove(legacyAlpha.Definition);
-            config.Save();
+            if (hadLegacyAlpha)
+            {
+                config.Remove(legacyAlpha.Definition);
+                config.Save();
+            }
             var scale = config.Bind(
                 section,
                 "Scale",
