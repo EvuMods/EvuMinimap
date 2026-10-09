@@ -67,3 +67,10 @@ jobs:
             src/EvuMinimap/bin/Release/EvuMinimap.dll
             src/EvuMinimap/bin/Release/EvuMinimap.Core.dll
           fail_on_unmatched_files: true
+
+      - name: Publish to Thunderstore
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: gh workflow run thunderstore.yml --repo "${{ github.repository }}" --ref main -f "tag=${TAG}"

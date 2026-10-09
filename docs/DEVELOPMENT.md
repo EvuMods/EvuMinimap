@@ -31,7 +31,7 @@ make package
 
 `make verify` is the gate: fetch references if needed, build, and test. `make package` writes `dist/EvuMinimap-<version>.zip` in the Hexium layout: `manifest.json`, `icon.png`, `README.md`, `CHANGELOG.md`, `EvuMinimap.dll`, and `EvuMinimap.Core.dll` all at the zip root. `version_number` in the packaged manifest is taken from `version.txt`. BepInExPack is not a manifest dependency; Hexium assumes it and strips that entry on upload.
 
-The release workflow attaches that zip and the two raw DLLs to the GitHub release. The Thunderstore workflow is manual. Run it from Actions, leave the tag empty to package the selected branch, or set a release tag such as `v0.1.0`. It publishes team `EvuMods` to the Valheim community with categories Mods, AI Generated, Client-side, Tweaks, and the update slug from the `game_category` input (`deep-north-update` today). NSFW is off. The service account token belongs in the `TCLI_AUTH_TOKEN` repository secret, not in the repo.
+The release workflow attaches that zip and the two raw DLLs to the GitHub release, then publishes that tag to Thunderstore. A release published outside that workflow starts the same publish. You can still run it from Actions: leave the tag empty to package the selected branch, or set a release tag such as `v0.1.0`. It publishes team `EvuMods` to the Valheim community with categories Mods, AI Generated, Client-side, Tweaks, and the update slug from the `game_category` input (`deep-north-update` today). NSFW is off. The service account token belongs in the `TCLI_AUTH_TOKEN` repository secret, not in the repo.
 
 ## Version
 
@@ -43,7 +43,7 @@ The release pull request is the only edit of `version.txt` and of `version_numbe
 
 A green compile means the referenced members and the layout tests still hold. It does not play the game. Check the minimap in a client after a game update that you care about.
 
-For that chain to publish on its own, the release-please workflow dispatches itself after merging a release pull request that contains only those rebuild commits. GitHub does not start a new workflow from `GITHUB_TOKEN` alone, so the dispatch is explicit. See `.github/workflows/`.
+For that chain to publish on its own, the release-please workflow dispatches itself after merging a release pull request that contains only those rebuild commits. GitHub does not start a new workflow from `GITHUB_TOKEN` alone, so the dispatch is explicit. The same limit is why release-please starts the Thunderstore workflow after it creates the GitHub release. See `.github/workflows/`.
 
 ## In-game check
 
