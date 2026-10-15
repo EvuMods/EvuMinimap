@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.3](https://github.com/EvuMods/EvuMinimap/compare/v0.2.2...v0.2.3) (2026-10-15)
+
+
+### Bug Fixes
+
+* **ci:** record each Valheim rebuild once ([71fe939](https://github.com/EvuMods/EvuMinimap/commit/71fe9395c178700a563c4350150e610c77d55ff3))
+* rebuild against Valheim 25909431 ([a13ba8b](https://github.com/EvuMods/EvuMinimap/commit/a13ba8b7b643598a364b48745fecc0f798a07ef3))
+* reject a Valheim download that is still the previous build ([596836e](https://github.com/EvuMods/EvuMinimap/commit/596836e3e219e1f36f204a82d72ae649828b6baa))
+
 ## [0.2.2](https://github.com/EvuMods/EvuMinimap/compare/v0.2.1...v0.2.2) (2026-10-09)
 
 
