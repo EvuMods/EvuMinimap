@@ -67,6 +67,14 @@ current_buildid() {
     | "$(python_bin)" -c "import json,sys; d=json.load(sys.stdin); print(d['data']['${APP_ID}']['depots']['branches']['public']['buildid'])"
 }
 
+installed_buildid() {
+  local manifest="$1/steamapps/appmanifest_${APP_ID}.acf"
+  if [[ ! -f "$manifest" ]]; then
+    return 1
+  fi
+  awk -F'"' '/"buildid"/ { print $4; exit }' "$manifest"
+}
+
 find_managed() {
   local root="$1"
   local candidate
@@ -142,17 +150,39 @@ fetch_valheim() {
     steamcmd="$CACHE/steamcmd/steamcmd.sh"
   fi
 
+  # A cold SteamCMD exits 8 with "Missing configuration" until it has signed
+  # in once and filled its app cache. Prime the login, then retry the update.
   set +e
-  "$steamcmd" +force_install_dir "$install" +login anonymous +app_update "$APP_ID" validate +quit
-  local status=$?
+  "$steamcmd" +login anonymous +quit
   set -e
 
-  local managed
-  if ! managed="$(find_managed "$install")"; then
-    echo "fetch-refs: steamcmd exit $status and assembly_valheim.dll was not found under $install" >&2
-    exit 1
-  fi
-  copy_valheim "$managed" "$buildid"
+  local status=0
+  local attempt managed installed
+  for attempt in 1 2 3; do
+    set +e
+    "$steamcmd" +force_install_dir "$install" +login anonymous +app_update "$APP_ID" validate +quit
+    status=$?
+    set -e
+    installed="$(installed_buildid "$install" || true)"
+    if [[ "$installed" == "$buildid" ]] && managed="$(find_managed "$install")"; then
+      copy_valheim "$managed" "$buildid"
+      return
+    fi
+    echo "fetch-refs: steamcmd attempt ${attempt} exited ${status}; installed build '${installed:-none}', wanted ${buildid}" >&2
+    # Steam stops issuing request codes for a retired manifest. An old
+    # appmanifest makes the update ask for that manifest, get Access Denied,
+    # and leave the previous build in place.
+    if [[ -n "$installed" && "$installed" != "$buildid" ]]; then
+      mv -f "$install/steamapps/appmanifest_${APP_ID}.acf" \
+        "$install/steamapps/appmanifest_${APP_ID}.acf.stale"
+    fi
+    if [[ "$attempt" -lt 3 ]]; then
+      sleep 3
+    fi
+  done
+
+  echo "fetch-refs: steamcmd exit ${status}; Valheim build ${buildid} was not installed under $install" >&2
+  exit 1
 }
 
 fetch_bepinex
