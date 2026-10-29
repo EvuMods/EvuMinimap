@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/EvuMods/EvuMinimap/compare/v0.2.3...v0.2.4) (2026-10-29)
+
+
+### Bug Fixes
+
+* rebuild against Valheim 26266951 ([a86d4f9](https://github.com/EvuMods/EvuMinimap/commit/a86d4f9ebb9e1ddb9174cffa1cc48aa0af724352))
+
 ## [0.2.3](https://github.com/EvuMods/EvuMinimap/compare/v0.2.2...v0.2.3) (2026-10-15)
 
 
